@@ -14,14 +14,8 @@
     <style>
         #myCanvas {
             position: absolute;
-            width: calc(100% - 100px);
-            width: -moz-calc(100% - 100px);
-            width: -webkit-calc(100% - 100px);
-            height: calc(100% - 80px);
-            height: -moz-calc(100% - 80px);
-            height: -webkit-calc(100vh - 80px);
-            left: 50px;
-            top: 40px;
+            width: 100%;
+            height: 100%;
         }
 
         #myViewCube {
@@ -83,15 +77,15 @@
         </div>
     </div>
     <script type="importmap">
-            {
-                "imports": {
-                    "@x-viewer/core": "../packages/core/dist/index.esm.js",
-                    "@x-viewer/plugins": "../packages/plugins/dist/index.esm.js",
-                    "@x-viewer/ui": "../packages/ui/dist/index.esm.js",
-                    "@x-viewer/builder": "../packages/builder/dist/index.esm.js"
-                }
+        {
+            "imports": {
+                "@x-viewer/core": "../packages/core/dist/index.esm.js",
+                "@x-viewer/plugins": "../packages/plugins/dist/index.esm.js",
+                "@x-viewer/ui": "../packages/ui/dist/index.esm.js",
+                "@x-viewer/builder": "../packages/builder/dist/index.esm.js"
             }
-        </script>
+        }
+    </script>
     <script type="module">
         import { Model3d, THREE, Interaction, ViewerEvent, Viewer3d } from "@x-viewer/core";
         import {
@@ -108,6 +102,7 @@
             SkyboxPlugin,
             StatsPlugin,
             ToolbarMenuId,
+            TreeViewPlugin,
             Viewer3dDatGuiPlugin,
             Viewer3dToolbarPlugin,
             ViewCubePlugin,
@@ -134,29 +129,7 @@
         // const fontFiles = ["libs/fonts/Microsoft_YaHei_Regular.typeface.json"];
         // const fontFiles = ["./libs/fonts/hztxt.shx", "./libs/fonts/simplex.shx"];
         // await viewer.setFont(fontFiles);
-        const menuConfig = {
-            [ToolbarMenuId.Settings]: {
-                visible: true,
-                onActive: () => {
-                    console.log("[Toolbar]", "Activate Settings");
-                    if (!window.settingsPanel) {
-                        window.settingsPanel = new Settings3dPlugin(window.viewer, { language });
-                    }
-                    window.settingsPanel.show();
-                },
-                onDeactive: () => {
-                    console.log("[Toolbar]", "Deactivate Settings");
-                    window.settingsPanel.hide();
-                },
-                mutexIds: [
-                    ToolbarMenuId.Measure,
-                    ToolbarMenuId.MeasureDistance,
-                    ToolbarMenuId.MeasureArea,
-                    ToolbarMenuId.MeasureAngle,
-                    ToolbarMenuId.MeasureCoordinate,
-                ],
-            },
-        };
+
         new AxisGizmoPlugin(viewer);
         new BottomBarPlugin(viewer);
         // new ContextMenuPlugin(viewer);
@@ -166,11 +139,13 @@
         new MeasurementPlugin(viewer, { language });
         new ScreenshotPlugin(viewer);
         new SectionPlugin(viewer, { language });
+        new Settings3dPlugin(viewer, { language, visible: false });
         new SkyboxPlugin(viewer);
         new StatsPlugin(viewer);
+        new TreeViewPlugin(viewer, { language, visible: false });
         new ViewCubePlugin(viewer, { containerId: "myViewCube", language });
         // new Viewer3dDatGuiPlugin(viewer);
-        new Viewer3dToolbarPlugin(viewer, { menuConfig, language });
+        let toolbarPlugin = new Viewer3dToolbarPlugin(viewer, { language });
         // draco decoder path is needed to load draco encoded models.
         // x-viewer js sdk user maintains draco decoder code somewhere, and provides the path here.
         const decoderPath = "libs/draco/gltf/";
@@ -735,13 +710,15 @@
             for (let i = 0; i < walls.length; i++) {
                 const item = walls[i];
                 const obj = await loadAsset(item.id, item);
+                obj.name = `Wall ${i + 1}`;
                 group.add(obj);
             }
             // Create racks
             for (let i = 0; i < racks.length; i++) {
+                const id = i >= 160 ? "builder.rack2" : "builder.rack";
                 const position = racks[i];
                 const param = {
-                    id: "builder.rack",
+                    id,
                     width: 0.6,
                     height: 2.0,
                     depth: 0.8,
@@ -749,6 +726,7 @@
                     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
                 };
                 const obj = await loadAsset(param.id, param);
+                obj.name = `Rack ${i + 1}`;
                 group.add(obj);
             }
             // Create columns
@@ -762,6 +740,7 @@
                     position,
                 };
                 const obj = await loadAsset(param.id, param);
+                obj.name = `Column ${i + 1}`;
                 group.add(obj);
             }
             // Create plants
@@ -773,6 +752,7 @@
                     position,
                 };
                 const obj = await loadAsset(param.id, param);
+                obj.name = `Plant ${i + 1}`;
                 group.add(obj);
             }
             return group;
@@ -826,7 +806,7 @@
             handle_dblclick(e) {
                 const pickData = viewer.pickObject({ x: e.x, y: e.y });
                 if (pickData && pickData.object) {
-                    console.log(pickData.object);
+                    console.log("Double clicked on:", pickData.object);
                     const rackObj = getRack(pickData.object);
                     if (lastRack && lastRack === rackObj) {
                         // click the same rack
